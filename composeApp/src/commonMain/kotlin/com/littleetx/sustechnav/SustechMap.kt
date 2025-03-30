@@ -5,14 +5,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +42,7 @@ import dev.sargunv.maplibrecompose.material3.controls.ScaleBarMeasure
 import dev.sargunv.maplibrecompose.material3.controls.ScaleBarMeasures
 import io.github.dellisd.spatialk.geojson.Feature
 import io.github.dellisd.spatialk.geojson.FeatureCollection
+import io.github.dellisd.spatialk.geojson.GeoJson
 import io.github.dellisd.spatialk.geojson.Point
 import io.github.dellisd.spatialk.geojson.Position
 import kotlinx.serialization.json.Json
@@ -47,6 +54,27 @@ import kotlin.time.Duration.Companion.seconds
 
 
 const val CUSTOM_MAP_DATA_KEY = "custom-map-data"
+
+
+@OptIn(ExperimentalResourceApi::class)
+@Composable
+fun loadNodeGeoJson(): State<GeoJson> {
+    return produceState<GeoJson>(initialValue = FeatureCollection()) {
+        val bytes = Res.readBytes("files/map_data.json")
+        val mapData = Json.decodeFromString<MapData>(bytes.decodeToString())
+        val features = mapData.nodes.map {
+            Feature(
+                id = it.id,
+                geometry = Point(
+                    coordinates = Position(longitude = it.lon, latitude = it.lat)
+                ),
+                properties = mapOf(CUSTOM_MAP_DATA_KEY to JsonPrimitive("node")),
+            )
+        }
+        value = FeatureCollection(features)
+        Logger.i { "Updated value" }
+    }
+}
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
@@ -62,20 +90,22 @@ fun SustechMap(modifier: Modifier = Modifier) {
     val editingModeState = remember { mutableStateOf(false) }
     val isDragEnable = remember { mutableStateOf(true) }
     val selectedNode = remember { mutableStateOf<MapNode?>(null) }
+    val editingNode = remember { mutableStateOf(false) }
 
-    LaunchedEffect(selectedNode) {
-        if (selectedNode.value == null) {
+    LaunchedEffect(selectedNode.value) {
+        val node = selectedNode.value
+        if (node == null) {
             return@LaunchedEffect
         }
         cameraState.animateTo(
             finalPosition = cameraState.position.copy(
                 target = Position(
-                    longitude = selectedNode.value!!.lon,
-                    latitude = selectedNode.value!!.lat,
+                    longitude = node.lon,
+                    latitude = node.lat,
                 ),
                 zoom = max(cameraState.position.zoom, 18.0)
             ),
-            duration = 2.seconds,
+            duration = 0.5.seconds,
         )
     }
 
@@ -108,35 +138,42 @@ fun SustechMap(modifier: Modifier = Modifier) {
                     else -> return@MaplibreMap ClickResult.Pass
                 }
                 ClickResult.Consume
-            }
+            },
         ) {
 
             val editorPoints = rememberGeoJsonSource(
                 id = "editor-points-source",
-                data = FeatureCollection()
+                data = loadNodeGeoJson().value,
             )
-
-            LaunchedEffect(Unit) {
-                val bytes = Res.readBytes("files/map_data.json")
-                val mapData = Json.decodeFromString<MapData>(bytes.decodeToString())
-                val nodeFeatures = mapData.nodes.map {
+            val editingPoint = rememberGeoJsonSource(
+                id = "editing-point",
+                data = selectedNode.value?.let {
                     Feature(
                         id = it.id,
                         geometry = Point(
                             coordinates = Position(longitude = it.lon, latitude = it.lat)
                         ),
-                        properties = mapOf(CUSTOM_MAP_DATA_KEY to JsonPrimitive("node"))
+                        properties = mapOf(CUSTOM_MAP_DATA_KEY to JsonPrimitive("editingNode")),
                     )
-                }
-                editorPoints.setData(FeatureCollection(nodeFeatures))
-            }
+                } ?: FeatureCollection()
+            )
 
             Anchor.Below("building-3d") {
                 CircleLayer(
                     id = "editor-points",
+                    visible = editingModeState.value,
                     source = editorPoints,
                     radius = const(5.dp),
                     color = const(Color.Black),
+                )
+
+                CircleLayer(
+                    id = "editing-point",
+                    visible = editingModeState.value,
+                    source = editingPoint,
+                    radius = const(5.dp),
+                    color = const(Color.Blue),
+                    strokeWidth = const(1.dp),
                 )
             }
         }
@@ -150,8 +187,10 @@ fun SustechMap(modifier: Modifier = Modifier) {
                 Text(if (editingModeState.value) { "关闭编辑模式" } else { "开启编辑模式" })
             }
 
+
+
             val node = selectedNode.value
-            if (node != null) {
+            if (editingModeState.value && node != null) {
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceBright,
@@ -160,10 +199,22 @@ fun SustechMap(modifier: Modifier = Modifier) {
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("节点 ID: ${node.id}", modifier = Modifier.padding(2.dp))
-                        Text("经度：${node.lat}", modifier = Modifier.padding(2.dp))
-                        Text("纬度：${node.lon}", modifier = Modifier.padding(2.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        IconButton(
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            onClick = {
+                                editingNode.value = true
+                            }
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                        }
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("节点 ID: ${node.id}", modifier = Modifier.padding(2.dp))
+                            Text("经度：${node.lat}", modifier = Modifier.padding(2.dp))
+                            Text("纬度：${node.lon}", modifier = Modifier.padding(2.dp))
+                        }
                     }
                 }
             }
