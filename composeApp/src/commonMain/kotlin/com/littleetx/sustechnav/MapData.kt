@@ -2,7 +2,7 @@ package com.littleetx.sustechnav
 
 import kotlinx.serialization.Serializable
 
-typealias NodeId = Int
+typealias NodeId = String
 
 @Serializable
 data class MapNode(
