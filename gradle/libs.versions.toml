@@ -18,6 +18,7 @@ maplibre = "0.6.0"
 maplibreAndroidVulkan = "11.8.5"
 serializationJson = "1.8.0"
 kermit = "2.0.5"
+sergeychTools = "1.5.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -37,6 +38,7 @@ maplibre-compose-material3 = { module = "dev.sargunv.maplibre-compose:maplibre-c
 maplibre-android-vulkan = { module = "org.maplibre.gl:android-sdk-vulkan", version.ref = "maplibreAndroidVulkan" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
 touchlab-kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
+sergeych-tools = { module = "net.sergeych:mp_stools", version.ref = "sergeychTools" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
