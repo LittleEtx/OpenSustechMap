@@ -57,8 +57,10 @@ fun resetMapData() {
 
 
 fun checkDatabaseCanInit() {
-    if (MapNodeEntity.count() != 0L || ConnectionEntity.count() != 0L) {
-        throw BadRequestException(message = "Database is not empty! Please use the delete api to reset database before initialize")
+    transaction {
+        if (MapNodeEntity.count() != 0L || ConnectionEntity.count() != 0L) {
+            throw BadRequestException(message = "Database is not empty! Please use the delete api to reset database before initialize")
+        }
     }
 }
 
