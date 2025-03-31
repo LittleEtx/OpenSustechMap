@@ -2,6 +2,10 @@ package com.littleetx.sustechnav
 
 import kotlinx.serialization.Serializable
 
+enum class ConnectionType {
+    Walk, Bike, Car, Bus
+}
+
 typealias NodeId = String
 
 @Serializable

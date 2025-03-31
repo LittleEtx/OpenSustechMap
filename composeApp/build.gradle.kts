@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -45,7 +44,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.maplibre.compose)
             implementation(libs.maplibre.compose.material3)
-            implementation(libs.kotlinx.serialization.json)
             implementation(libs.touchlab.kermit)
             implementation(libs.sergeych.tools)
             implementation(projects.shared)
