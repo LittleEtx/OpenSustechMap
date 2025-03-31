@@ -48,6 +48,7 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.touchlab.kermit)
             implementation(libs.sergeych.tools)
+            implementation(projects.shared)
         }
     }
 }

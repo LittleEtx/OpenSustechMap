@@ -93,7 +93,7 @@ fun loadNodeGeoJson(): State<GeoJson> {
 
 
 fun updateNode(newNode: MapNode) {
-
+    TODO()
 }
 
 @OptIn(ExperimentalResourceApi::class)
