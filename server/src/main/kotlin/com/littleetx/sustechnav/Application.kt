@@ -11,15 +11,5 @@ fun Application.module() {
         get("/") {
             call.respondText("Ktor: ${Greeting().greet()}")
         }
-
-        route("/mapdata") {
-            get {
-
-            }
-
-            post("/node") {
-
-            }
-        }
     }
 }

@@ -26,6 +26,7 @@ hikariCP = "6.3.0"
 h2databse = "2.2.224"
 reflections = "0.10.2"
 sqlite = "3.49.1.0"
+geojson = "0.3.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -44,6 +45,7 @@ androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle
 maplibre-compose = { module = "dev.sargunv.maplibre-compose:maplibre-compose", version.ref = "maplibre" }
 maplibre-compose-material3 = { module = "dev.sargunv.maplibre-compose:maplibre-compose-material3", version.ref = "maplibre" }
 maplibre-android-vulkan = { module = "org.maplibre.gl:android-sdk-vulkan", version.ref = "maplibreAndroidVulkan" }
+spatialk-geojson = { module = "io.github.dellisd.spatialk:geojson", version.ref = "geojson" }
 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
 touchlab-kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
@@ -52,6 +54,9 @@ sergeych-tools = { module = "net.sergeych:mp_stools", version.ref = "sergeychToo
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
 
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }

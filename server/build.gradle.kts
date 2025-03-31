@@ -16,6 +16,10 @@ dependencies {
     implementation(libs.logback)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
     implementation(libs.exposed.core)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.jdbc)
@@ -26,5 +30,7 @@ dependencies {
     implementation(libs.hikari.cp)
     implementation(libs.database.driver.sqlite)
     implementation(libs.reflections)
+    implementation(libs.spatialk.geojson)
+
     testImplementation(libs.kotlin.test.junit)
 }
