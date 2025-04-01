@@ -28,6 +28,8 @@ h2databse = "2.3.232"
 reflections = "0.10.2"
 sqlite = "3.49.1.0"
 geojson = "0.3.0"
+slf4j = "2.0.17"
+slf4jAndriod = "2.0.17-0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -53,6 +55,10 @@ touchlab-kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 sergeych-tools = { module = "net.sergeych:mp_stools", version.ref = "sergeychTools" }
 
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version.ref = "slf4jAndriod" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
