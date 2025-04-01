@@ -1,4 +1,4 @@
-package com.littleetx.sustechnav
+package com.littleetx.sustechnav.components
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -37,6 +36,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
+import com.littleetx.sustechnav.MapData
+import com.littleetx.sustechnav.MapNode
 import com.littleetx.sustechnav.api.ApiPayload
 import com.littleetx.sustechnav.api.Failure
 import com.littleetx.sustechnav.api.Success
@@ -106,10 +107,15 @@ fun loadNodeGeoJson(apiPayload: ApiPayload, updateHandle: Int): State<GeoJson> {
     }
 }
 
+enum class MapMode {
+    Map, Edit
+}
+
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 fun SustechMap(
-    scope: CoroutineScope,
+    mode: MapMode,
+    coroutineScope: CoroutineScope,
     apiPayload: ApiPayload,
     modifier: Modifier = Modifier,
 ) {
@@ -122,7 +128,8 @@ fun SustechMap(
 
     val styleState = rememberStyleState()
 
-    var isInsightMode by remember { mutableStateOf(false) }
+    val isInsightMode = mode == MapMode.Edit
+
     var isDragEnable by remember { mutableStateOf(true) }
     var selectedNode by remember { mutableStateOf<MapNode?>(null) }
     var selectedNodeNewPosition by remember { mutableStateOf(Position(longitude = 0.0, latitude = 0.0))}
@@ -166,7 +173,8 @@ fun SustechMap(
                         val point = feature.geometry as Point
                         Logger.i { "Point: id = ${feature.id}, lat = ${point.coordinates.latitude}, lon = ${point.coordinates.longitude}" }
                         selectedNode = MapNode(
-                            id = feature.id ?: "".also { Logger.w { "Null id for selected point feature!" } },
+                            id = feature.id
+                                ?: "".also { Logger.w { "Null id for selected point feature!" } },
                             lat = point.coordinates.latitude,
                             lon = point.coordinates.longitude,
                         )
@@ -272,13 +280,6 @@ fun SustechMap(
 
         Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
 
-            Button(
-                onClick = { isInsightMode = !isInsightMode },
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 20.dp),
-            ) {
-                Text(if (isInsightMode) { "关闭编辑模式" } else { "开启编辑模式" })
-            }
-
             if (isInsightMode && selectedNode != null) {
                 Card(
                     colors = CardDefaults.cardColors(
@@ -309,7 +310,7 @@ fun SustechMap(
                                 modifier = Modifier.align(Alignment.TopEnd),
                                 onClick = {
                                     isEditingNode = false
-                                    scope.launch {
+                                    coroutineScope.launch {
                                         val id = selectedNode!!.id
                                         val newNode = MapNode(
                                             id = id,
