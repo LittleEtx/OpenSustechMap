@@ -1,14 +1,34 @@
 package com.littleetx.sustechnav
 
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +37,11 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
+import com.littleetx.sustechnav.api.ApiPayload
+import com.littleetx.sustechnav.api.Failure
+import com.littleetx.sustechnav.api.Success
+import com.littleetx.sustechnav.api.getMapData
+import com.littleetx.sustechnav.api.updateNode
 import dev.sargunv.maplibrecompose.compose.ClickResult
 import dev.sargunv.maplibrecompose.compose.MaplibreMap
 import dev.sargunv.maplibrecompose.compose.layer.Anchor
@@ -33,7 +58,14 @@ import dev.sargunv.maplibrecompose.material3.controls.DisappearingCompassButton
 import dev.sargunv.maplibrecompose.material3.controls.DisappearingScaleBar
 import dev.sargunv.maplibrecompose.material3.controls.ScaleBarMeasure
 import dev.sargunv.maplibrecompose.material3.controls.ScaleBarMeasures
-import io.github.dellisd.spatialk.geojson.*
+import io.github.dellisd.spatialk.geojson.Feature
+import io.github.dellisd.spatialk.geojson.FeatureCollection
+import io.github.dellisd.spatialk.geojson.GeoJson
+import io.github.dellisd.spatialk.geojson.LineString
+import io.github.dellisd.spatialk.geojson.Point
+import io.github.dellisd.spatialk.geojson.Position
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import net.sergeych.sprintf.sprintf
@@ -48,10 +80,18 @@ const val CUSTOM_MAP_DATA_KEY = "custom-map-data"
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-fun loadNodeGeoJson(): State<GeoJson> {
-    return produceState<GeoJson>(initialValue = FeatureCollection()) {
-        val bytes = Res.readBytes("files/map_data.json")
-        val mapData = Json.decodeFromString<MapData>(bytes.decodeToString())
+fun loadNodeGeoJson(apiPayload: ApiPayload, updateHandle: Int): State<GeoJson> {
+    return produceState<GeoJson>(initialValue = FeatureCollection(), updateHandle) {
+        val result = apiPayload.getMapData()
+        val mapData = when(result) {
+            is Success -> result.value
+            is Failure -> {
+                Logger.w { "Fail to get map data, will use the default map data instead" }
+                val bytes = Res.readBytes("files/map_data.json")
+                Json.decodeFromString<MapData>(bytes.decodeToString())
+            }
+        }
+
         val features = mapData.nodes.map {
             Feature(
                 id = it.id,
@@ -66,14 +106,13 @@ fun loadNodeGeoJson(): State<GeoJson> {
     }
 }
 
-
-fun updateNode(newNode: MapNode) {
-    TODO()
-}
-
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-fun SustechMap(modifier: Modifier = Modifier) {
+fun SustechMap(
+    scope: CoroutineScope,
+    apiPayload: ApiPayload,
+    modifier: Modifier = Modifier,
+) {
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = Position(latitude = 22.602, longitude = 113.995),
@@ -88,6 +127,7 @@ fun SustechMap(modifier: Modifier = Modifier) {
     var selectedNode by remember { mutableStateOf<MapNode?>(null) }
     var selectedNodeNewPosition by remember { mutableStateOf(Position(longitude = 0.0, latitude = 0.0))}
     var isEditingNode by remember { mutableStateOf(false) }
+    var updateMapDataHandle by remember { mutableStateOf(0) }
 
     LaunchedEffect(selectedNode) {
         selectedNode?.let {
@@ -139,7 +179,7 @@ fun SustechMap(modifier: Modifier = Modifier) {
 
             val nodePoints = rememberGeoJsonSource(
                 id = "node-points",
-                data = loadNodeGeoJson().value,
+                data = loadNodeGeoJson(apiPayload, updateMapDataHandle).value,
             )
             val selectingPoint = rememberGeoJsonSource(
                 id = "selecting-point",
@@ -269,11 +309,17 @@ fun SustechMap(modifier: Modifier = Modifier) {
                                 modifier = Modifier.align(Alignment.TopEnd),
                                 onClick = {
                                     isEditingNode = false
-                                    updateNode(MapNode(
-                                        id = selectedNode!!.id,
-                                        lon = selectedNodeNewPosition.longitude,
-                                        lat = selectedNodeNewPosition.latitude,
-                                    ))
+                                    scope.launch {
+                                        val id = selectedNode!!.id
+                                        val newNode = MapNode(
+                                            id = id,
+                                            lon = selectedNodeNewPosition.longitude,
+                                            lat = selectedNodeNewPosition.latitude,
+                                        )
+                                        apiPayload.updateNode(newNode)
+                                        ++updateMapDataHandle
+                                        selectedNode = newNode
+                                    }
                                 }
                             ) {
                                 Icon(Icons.Filled.Done, contentDescription = "Done")
