@@ -10,15 +10,23 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardDoubleArrowRight
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,13 +44,12 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
-import com.littleetx.sustechnav.MapData
-import com.littleetx.sustechnav.MapNode
-import com.littleetx.sustechnav.api.ApiPayload
-import com.littleetx.sustechnav.api.Failure
-import com.littleetx.sustechnav.api.Success
-import com.littleetx.sustechnav.api.getMapData
-import com.littleetx.sustechnav.api.updateNode
+import com.littleetx.sustechnav.NodeId
+import com.littleetx.sustechnav.data.NavigationData
+import com.littleetx.sustechnav.data.NodeConnection
+import com.littleetx.sustechnav.data.NodeInfo
+import com.littleetx.sustechnav.data.getNode
+import com.littleetx.sustechnav.data.notContainsNode
 import dev.sargunv.maplibrecompose.compose.ClickResult
 import dev.sargunv.maplibrecompose.compose.MaplibreMap
 import dev.sargunv.maplibrecompose.compose.layer.Anchor
@@ -52,7 +59,6 @@ import dev.sargunv.maplibrecompose.compose.rememberCameraState
 import dev.sargunv.maplibrecompose.compose.rememberStyleState
 import dev.sargunv.maplibrecompose.compose.source.rememberGeoJsonSource
 import dev.sargunv.maplibrecompose.core.CameraPosition
-import dev.sargunv.maplibrecompose.core.GestureSettings
 import dev.sargunv.maplibrecompose.core.OrnamentSettings
 import dev.sargunv.maplibrecompose.expressions.dsl.const
 import dev.sargunv.maplibrecompose.material3.controls.DisappearingCompassButton
@@ -65,10 +71,11 @@ import io.github.dellisd.spatialk.geojson.GeoJson
 import io.github.dellisd.spatialk.geojson.LineString
 import io.github.dellisd.spatialk.geojson.Point
 import io.github.dellisd.spatialk.geojson.Position
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 import net.sergeych.sprintf.sprintf
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import sustechnav.composeapp.generated.resources.Res
@@ -76,33 +83,69 @@ import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
 
 
-const val CUSTOM_MAP_DATA_KEY = "custom-map-data"
+const val FEATURE_TYPE = "custom-map-data-type"
+const val FEATURE_VALUE = "custom-map-data-value"
+
+sealed class SelectedFeature
+@Serializable
+class SelectedNode(val id: NodeId) : SelectedFeature()
+
+@Serializable
+class SelectedConnection(val node1: NodeId, val node2: NodeId) : SelectedFeature()
+
+val nodeType = JsonPrimitive("node")
+val connectionType = JsonPrimitive("connection")
 
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
-fun loadNodeGeoJson(apiPayload: ApiPayload, updateHandle: Int): State<GeoJson> {
-    return produceState<GeoJson>(initialValue = FeatureCollection(), updateHandle) {
-        val result = apiPayload.getMapData()
-        val mapData = when(result) {
-            is Success -> result.value
-            is Failure -> {
-                Logger.w { "Fail to get map data, will use the default map data instead" }
-                val bytes = Res.readBytes("files/map_data.json")
-                Json.decodeFromString<MapData>(bytes.decodeToString())
+fun getMapEditGeoJson(navData: NavigationData): State<GeoJson> {
+    return produceState<GeoJson>(initialValue = FeatureCollection(), navData) {
+        val nodeFeatures = navData.nodes.values.map {
+            Feature(
+                id = "node-${it.id}",
+                geometry = Point(coordinates = it.position),
+                properties = mapOf(
+                    FEATURE_TYPE to nodeType,
+                    FEATURE_VALUE to Json.encodeToJsonElement(SelectedNode(it.id))
+                ),
+            )
+        }
+
+        val lines = mutableSetOf<Pair<NodeId, NodeId>>()
+        navData.nodeConn.values.forEach { connections ->
+            connections.forEach {
+                if (navData.notContainsNode(it.target)) {
+                    Logger.w { "Node ${it.target} not in navData!" }
+                    return@forEach
+                }
+                if (navData.notContainsNode(it.origin)) {
+                    Logger.w { "Node ${it.origin} not in navData!" }
+                    return@forEach
+                }
+                val pair = it.origin to it.target
+                val pairRevered = it.target to it.origin
+                if (pair !in lines && pairRevered !in lines) {
+                    lines.add(pair)
+                }
             }
         }
 
-        val features = mapData.nodes.map {
+        val lineFeatures = lines.map { (node1, node2) ->
             Feature(
-                id = it.id,
-                geometry = Point(
-                    coordinates = Position(longitude = it.lon, latitude = it.lat)
+                id = "conn-${node1}-${node2}",
+                geometry = LineString(
+                    navData.getNode(node1)!!.position,
+                    navData.getNode(node2)!!.position,
                 ),
-                properties = mapOf(CUSTOM_MAP_DATA_KEY to JsonPrimitive("node")),
+                properties = mapOf(
+                    FEATURE_TYPE to connectionType,
+                    FEATURE_VALUE to Json.encodeToJsonElement(SelectedConnection(node1 = node1, node2 = node2))
+                ),
             )
         }
-        value = FeatureCollection(features)
+
+        value = FeatureCollection(nodeFeatures + lineFeatures)
         Logger.i { "Updated value" }
     }
 }
@@ -111,13 +154,18 @@ enum class MapMode {
     Map, Edit
 }
 
+val MapMode.isEditMode get() = this == MapMode.Edit
+
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 fun SustechMap(
     mode: MapMode,
-    coroutineScope: CoroutineScope,
-    apiPayload: ApiPayload,
+    navData: NavigationData,
+    onModifyNode: (NodeInfo) -> Unit,
+    onModifyConn: (NodeConnection) -> Unit,
     modifier: Modifier = Modifier,
+    isEditingNode: Boolean,
+    setIsEditingNode: (Boolean) -> Unit,
 ) {
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
@@ -127,24 +175,15 @@ fun SustechMap(
     )
 
     val styleState = rememberStyleState()
-
-    val isInsightMode = mode == MapMode.Edit
-
-    var isDragEnable by remember { mutableStateOf(true) }
-    var selectedNode by remember { mutableStateOf<MapNode?>(null) }
+    var selectedFeature by remember { mutableStateOf<SelectedFeature?>(null) }
     var selectedNodeNewPosition by remember { mutableStateOf(Position(longitude = 0.0, latitude = 0.0))}
-    var isEditingNode by remember { mutableStateOf(false) }
-    var updateMapDataHandle by remember { mutableStateOf(0) }
 
-    LaunchedEffect(selectedNode) {
-        selectedNode?.let {
-            isEditingNode = false
+    LaunchedEffect(selectedFeature) {
+        val feature = selectedFeature
+        if (feature != null && feature is SelectedNode) {
             cameraState.animateTo(
                 finalPosition = cameraState.position.copy(
-                    target = Position(
-                        longitude = it.lon,
-                        latitude = it.lat,
-                    ),
+                    target = navData.getNode(feature.id)!!.position,
                     zoom = max(cameraState.position.zoom, 18.0)
                 ),
                 duration = 0.5.seconds,
@@ -152,32 +191,39 @@ fun SustechMap(
         }
     }
 
+
     Box(modifier = modifier) {
         MaplibreMap(
             cameraState = cameraState,
             styleState = styleState,
             styleUri = Res.getUri("files/osm_liberty.json"),
             ornamentSettings = OrnamentSettings.AllDisabled,
-            gestureSettings = GestureSettings(isScrollGesturesEnabled = isDragEnable),
             onMapClick = { pos, offset ->
-                val feature = cameraState.queryRenderedFeatures(offset)
-                    .firstOrNull { CUSTOM_MAP_DATA_KEY in it.properties }
-
-                if (feature == null) {
-                    selectedNode = null
+                if (isEditingNode) {
                     return@MaplibreMap ClickResult.Pass
                 }
 
-                when (feature.properties[CUSTOM_MAP_DATA_KEY]) {
-                    JsonPrimitive("node") -> {
+                val feature = cameraState.queryRenderedFeatures(offset)
+                    .filter { FEATURE_TYPE in it.properties }
+                    .maxByOrNull {
+                        when(it.properties[FEATURE_TYPE]) {
+                            nodeType -> 3
+                            connectionType -> 2
+                            else-> 0
+                        }
+                    }
+
+                if (feature == null) {
+                    Logger.i { "Found no features to load" }
+                    selectedFeature = null
+                    return@MaplibreMap ClickResult.Pass
+                }
+
+                when (feature.properties[FEATURE_TYPE]) {
+                    nodeType -> {
                         val point = feature.geometry as Point
                         Logger.i { "Point: id = ${feature.id}, lat = ${point.coordinates.latitude}, lon = ${point.coordinates.longitude}" }
-                        selectedNode = MapNode(
-                            id = feature.id
-                                ?: "".also { Logger.w { "Null id for selected point feature!" } },
-                            lat = point.coordinates.latitude,
-                            lon = point.coordinates.longitude,
-                        )
+                        selectedFeature = Json.decodeFromJsonElement<SelectedNode>(feature.properties[FEATURE_VALUE]!!)
                     }
                     else -> return@MaplibreMap ClickResult.Pass
                 }
@@ -187,15 +233,16 @@ fun SustechMap(
 
             val nodePoints = rememberGeoJsonSource(
                 id = "node-points",
-                data = loadNodeGeoJson(apiPayload, updateMapDataHandle).value,
+                data = getMapEditGeoJson(navData).value,
             )
+
+            val feature = selectedFeature
             val selectingPoint = rememberGeoJsonSource(
                 id = "selecting-point",
-                data = if (selectedNode != null) {
+                data = if (feature != null && feature is SelectedNode) {
+                    val node = navData.getNode(feature.id)
                     Feature(
-                        geometry = Point(
-                            coordinates = Position(longitude = selectedNode!!.lon, latitude = selectedNode!!.lat)
-                        ),
+                        geometry = Point(coordinates = node!!.position),
                     )
                 } else FeatureCollection()
             )
@@ -203,10 +250,11 @@ fun SustechMap(
             val editingPointLine = rememberGeoJsonSource(
                 id = "editing-point",
                 data = if (isEditingNode) {
+                    val node = navData.getNode((feature as SelectedNode).id)
                     Feature(
                         geometry = LineString(
                             coordinates = listOf(
-                                Position(longitude = selectedNode!!.lon, latitude = selectedNode!!.lat),
+                                node!!.position,
                                 selectedNodeNewPosition,
                             ),
                         ),
@@ -217,9 +265,16 @@ fun SustechMap(
             Anchor.Below("building-3d") {
                 CircleLayer(
                     id = "node-points",
-                    visible = isInsightMode,
+                    visible = mode.isEditMode,
                     source = nodePoints,
                     radius = const(5.dp),
+                    color = const(Color.Blue),
+                )
+                LineLayer(
+                    id = "node-connections",
+                    visible = mode.isEditMode,
+                    source = nodePoints,
+                    width = const(5.dp),
                     color = const(Color.Blue),
                 )
 
@@ -244,7 +299,7 @@ fun SustechMap(
 
                 CircleLayer(
                     id = "selecting-point",
-                    visible = selectedNode != null,
+                    visible = selectedFeature != null,
                     source = selectingPoint,
                     radius = const(5.dp),
                     color = const(Color.Red),
@@ -254,7 +309,7 @@ fun SustechMap(
             }
         }
 
-        val drawDraggingIcon = isEditingNode && selectedNode != null
+        val drawDraggingIcon = isEditingNode && selectedFeature != null
         if (drawDraggingIcon) {
             val current = cameraState.screenLocationFromPosition(selectedNodeNewPosition)
             val iconSize = 30.dp
@@ -279,8 +334,41 @@ fun SustechMap(
         }
 
         Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+            val feature = selectedFeature
+            if (mode.isEditMode && feature != null && feature is SelectedNode) {
+                val node = navData.getNode(feature.id)!!
 
-            if (isInsightMode && selectedNode != null) {
+                if (isEditingNode) {
+                    var showDialog by remember { mutableStateOf(false) }
+
+                    ElevatedButton(
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        colors = ButtonDefaults.outlinedButtonColors()
+                            .copy(contentColor = MaterialTheme.colorScheme.error),
+                        onClick = {
+                            if (node.position == selectedNodeNewPosition) {
+                                setIsEditingNode(false)
+                            } else {
+                                showDialog = true
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cancel")
+                        Text("取消编辑")
+                    }
+
+                    if (showDialog) {
+                        WarningDialog(
+                            onDismissRequest = { showDialog = false },
+                            onConfirmation = {
+                                showDialog = false
+                                setIsEditingNode(false)
+                            },
+                            dialogTitle = "确定取消编辑？",
+                            dialogText = "对节点做出的修改将不会保存",
+                        )
+                    }
+                }
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceBright,
@@ -293,34 +381,49 @@ fun SustechMap(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (!isEditingNode) {
+                            var expanded by remember { mutableStateOf(false) }
                             IconButton(
                                 modifier = Modifier.align(Alignment.TopEnd),
-                                onClick = {
-                                    isEditingNode = true
-                                    selectedNodeNewPosition = Position(
-                                        longitude = selectedNode!!.lon,
-                                        latitude = selectedNode!!.lat,
+                                onClick = { expanded = !expanded }
+                            ) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+
+                                DropdownMenu(
+                                    modifier = Modifier.align(Alignment.TopEnd),
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    containerColor = MaterialTheme.colorScheme.surfaceBright,
+                                ) {
+                                    DropdownMenuItem(
+                                        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = "Edit") },
+                                        text = { Text("编辑节点") },
+                                        onClick = {
+                                            setIsEditingNode(true)
+                                            selectedNodeNewPosition = node.position
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = "Delete") },
+                                        text = { Text("删除节点") },
+                                        colors = MenuDefaults.itemColors().copy(
+                                            textColor = MaterialTheme.colorScheme.error,
+                                            leadingIconColor = MaterialTheme.colorScheme.error,
+                                        ),
+                                        onClick = {
+
+                                        }
                                     )
                                 }
-                            ) {
-                                Icon(Icons.Filled.Edit, contentDescription = "Edit")
                             }
                         } else {
                             IconButton(
                                 modifier = Modifier.align(Alignment.TopEnd),
                                 onClick = {
-                                    isEditingNode = false
-                                    coroutineScope.launch {
-                                        val id = selectedNode!!.id
-                                        val newNode = MapNode(
-                                            id = id,
-                                            lon = selectedNodeNewPosition.longitude,
-                                            lat = selectedNodeNewPosition.latitude,
-                                        )
-                                        apiPayload.updateNode(newNode)
-                                        ++updateMapDataHandle
-                                        selectedNode = newNode
-                                    }
+                                    setIsEditingNode(false)
+                                    onModifyNode(NodeInfo(
+                                        id = node.id,
+                                        position = selectedNodeNewPosition,
+                                    ))
                                 }
                             ) {
                                 Icon(Icons.Filled.Done, contentDescription = "Done")
@@ -328,9 +431,9 @@ fun SustechMap(
                         }
 
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("节点 ID: ${selectedNode!!.id}")
+                            Text("节点 ID: ${node.id}")
                             Row {
-                                Text("经度：${"%3.7f".sprintf(selectedNode!!.lat)}")
+                                Text("经度：${"%3.7f".sprintf(node.position.latitude)}")
                                 if (isEditingNode) {
                                     Icon(Icons.Filled.KeyboardDoubleArrowRight,
                                         contentDescription = "To",
@@ -342,7 +445,7 @@ fun SustechMap(
                                 }
                             }
                             Row {
-                                Text("纬度：${"%3.7f".sprintf(selectedNode!!.lon)}")
+                                Text("纬度：${"%3.7f".sprintf(node.position.longitude)}")
                                 if (isEditingNode) {
                                     Icon(Icons.Filled.KeyboardDoubleArrowRight,
                                         contentDescription = "To",
@@ -362,9 +465,9 @@ fun SustechMap(
                 measures = ScaleBarMeasures(primary = ScaleBarMeasure.Metric),
                 metersPerDp = cameraState.metersPerDpAtTarget,
                 zoom = cameraState.position.zoom,
-                modifier = Modifier.align(Alignment.TopStart),
+                modifier = Modifier.align(Alignment.TopCenter),
             )
-            DisappearingCompassButton(cameraState, modifier = Modifier.align(Alignment.TopEnd))
+            DisappearingCompassButton(cameraState, modifier = Modifier.align(Alignment.TopStart))
         }
     }
 }
