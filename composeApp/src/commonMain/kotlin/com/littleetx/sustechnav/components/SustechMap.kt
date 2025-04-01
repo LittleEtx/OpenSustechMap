@@ -166,6 +166,7 @@ fun SustechMap(
     modifier: Modifier = Modifier,
     isEditingNode: Boolean,
     setIsEditingNode: (Boolean) -> Unit,
+    onDiscardEditing: () -> Unit,
 ) {
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
@@ -188,6 +189,12 @@ fun SustechMap(
                 ),
                 duration = 0.5.seconds,
             )
+        }
+    }
+
+    LaunchedEffect(mode) {
+        if (mode != MapMode.Edit) {
+            selectedFeature = null
         }
     }
 
@@ -214,7 +221,6 @@ fun SustechMap(
                     }
 
                 if (feature == null) {
-                    Logger.i { "Found no features to load" }
                     selectedFeature = null
                     return@MaplibreMap ClickResult.Pass
                 }
@@ -339,8 +345,6 @@ fun SustechMap(
                 val node = navData.getNode(feature.id)!!
 
                 if (isEditingNode) {
-                    var showDialog by remember { mutableStateOf(false) }
-
                     ElevatedButton(
                         modifier = Modifier.align(Alignment.TopEnd),
                         colors = ButtonDefaults.outlinedButtonColors()
@@ -349,24 +353,12 @@ fun SustechMap(
                             if (node.position == selectedNodeNewPosition) {
                                 setIsEditingNode(false)
                             } else {
-                                showDialog = true
+                                onDiscardEditing()
                             }
                         }
                     ) {
                         Icon(Icons.Filled.Close, contentDescription = "Cancel")
                         Text("取消编辑")
-                    }
-
-                    if (showDialog) {
-                        WarningDialog(
-                            onDismissRequest = { showDialog = false },
-                            onConfirmation = {
-                                showDialog = false
-                                setIsEditingNode(false)
-                            },
-                            dialogTitle = "确定取消编辑？",
-                            dialogText = "对节点做出的修改将不会保存",
-                        )
                     }
                 }
                 Card(
@@ -410,7 +402,7 @@ fun SustechMap(
                                             leadingIconColor = MaterialTheme.colorScheme.error,
                                         ),
                                         onClick = {
-
+                                            //TODO
                                         }
                                     )
                                 }

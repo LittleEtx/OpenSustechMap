@@ -44,6 +44,7 @@ import com.littleetx.sustechnav.api.getMapData
 import com.littleetx.sustechnav.api.updateNode
 import com.littleetx.sustechnav.components.MapMode
 import com.littleetx.sustechnav.components.SustechMap
+import com.littleetx.sustechnav.components.WarningDialog
 import com.littleetx.sustechnav.data.NavigationData
 import com.littleetx.sustechnav.data.toNavigationData
 import kotlinx.coroutines.launch
@@ -117,6 +118,7 @@ fun App() {
     val (appMode, setAppMode) = remember { mutableStateOf(AppMode.Map) }
     val (isProcessingRequest, setIsProcessing) = remember { mutableStateOf(false) }
     val (isEditingNode, setIsEditingNode) = remember { mutableStateOf(false) }
+    var nextAppMode by remember { mutableStateOf<AppMode?>(null) }
 
 
     val navData by fetchNavData(
@@ -130,8 +132,41 @@ fun App() {
         }
     )
 
+    var showConfirmDiscardEditingDialog by remember { mutableStateOf(false) }
+    fun changeAppMode(mode: AppMode) {
+        if (mode == appMode) {
+            return
+        }
+        if (isEditingNode) {
+            nextAppMode = mode
+            showConfirmDiscardEditingDialog = true
+        } else {
+            setAppMode(mode)
+        }
+    }
 
     AppTheme {
+        if (showConfirmDiscardEditingDialog) {
+            WarningDialog(
+                onDismissRequest = {
+                    showConfirmDiscardEditingDialog = false
+                    nextAppMode = null
+               },
+                onConfirmation = {
+                    showConfirmDiscardEditingDialog = false
+                    setIsEditingNode(false)
+                    val nextMode = nextAppMode
+                    if (nextMode != null) {
+                        setAppMode(nextMode)
+                        nextAppMode = null
+                    }
+                },
+                dialogTitle = "确定取消编辑？",
+                dialogText = "修改将不会保存",
+            )
+        }
+
+
         Scaffold(
             snackbarHost = {
                 SnackbarHost(hostState = snackbarHostState)
@@ -143,14 +178,14 @@ fun App() {
                 ) {
                     AppBarButton(
                         currentMode = appMode,
-                        onClick = setAppMode,
+                        onClick = ::changeAppMode,
                         text = "地图",
                         icon = Icons.Filled.Map,
                         buttonMode = AppMode.Map,
                     )
                     AppBarButton(
                         currentMode = appMode,
-                        onClick = setAppMode,
+                        onClick = ::changeAppMode,
                         text = "编辑",
                         icon = Icons.Filled.EditLocation,
                         buttonMode = AppMode.EditMap,
@@ -190,8 +225,8 @@ fun App() {
                     },
                     isEditingNode = isEditingNode,
                     setIsEditingNode = setIsEditingNode,
+                    onDiscardEditing = { showConfirmDiscardEditingDialog = true }
                 )
-
 
                 AnimatedVisibility(
                     modifier = Modifier
