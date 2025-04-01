@@ -41,3 +41,13 @@ class MapData(
     val nodes: List<MapNode>,
     val connections: List<Connection>,
 )
+
+/**
+ * 当应答不是200时，都会返回这个结构
+ */
+@Serializable
+data class ErrorResponse(
+    val code: Int,
+    val message: String,
+    val details: Map<String, String> = emptyMap()
+)

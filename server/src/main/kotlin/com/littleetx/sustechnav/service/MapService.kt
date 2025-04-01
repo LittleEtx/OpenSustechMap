@@ -8,10 +8,10 @@ import com.littleetx.sustechnav.database.ConnectionEntity
 import com.littleetx.sustechnav.database.ConnectionTable
 import com.littleetx.sustechnav.database.MapNodeEntity
 import com.littleetx.sustechnav.database.MapNodeTable
-import com.littleetx.sustechnav.exceptions.BadRequestException
 import io.github.dellisd.spatialk.geojson.FeatureCollection
 import io.github.dellisd.spatialk.geojson.LineString
 import io.github.dellisd.spatialk.geojson.Position
+import io.ktor.server.plugins.*
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.deleteAll
 import org.jetbrains.exposed.sql.transactions.transaction

@@ -15,8 +15,13 @@ fun Application.module() {
     }
 
     routing {
-        route("/map") {
-            mapRoute()
+        route("/api/v1") {
+            route("/map") {
+                mapRoute()
+            }
+            route("/node") {
+                nodeRoute()
+            }
         }
     }
 

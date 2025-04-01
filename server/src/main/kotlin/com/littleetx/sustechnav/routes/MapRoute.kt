@@ -1,11 +1,11 @@
 package com.littleetx.sustechnav.routes
 
-import com.littleetx.sustechnav.exceptions.BadRequestException
 import com.littleetx.sustechnav.service.getMapData
 import com.littleetx.sustechnav.service.initFromGeojson
 import com.littleetx.sustechnav.service.resetMapData
 import io.github.dellisd.spatialk.geojson.FeatureCollection
 import io.ktor.http.*
+import io.ktor.server.plugins.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -31,7 +31,7 @@ fun Route.mapRoute() {
                 } catch (e: Exception) {
                     throw BadRequestException(
                         message = "Invalid GeoJSON format",
-                        details = mapOf("error" to (e.message ?: "Unknown parsing error"))
+                        cause = e,
                     )
                 }
                 initFromGeojson(featureCollection)
