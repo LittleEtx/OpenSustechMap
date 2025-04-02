@@ -51,6 +51,8 @@ fun AppMap(
     var selectedFeature by remember { mutableStateOf<SelectedFeature?>(null) }
     var selectedNodeNewPosition by remember { mutableStateOf(Position(longitude = 0.0, latitude = 0.0))}
 
+    var currentRoute by remember { mutableStateOf<SearchRouteResult>(SearchRouteResult()) }
+
 
     LaunchedEffect(mode) {
         if (mode != MapMode.Edit) {
@@ -68,6 +70,7 @@ fun AppMap(
     Box(modifier = modifier) {
         SustechMap(
             cameraState = cameraState,
+            route = currentRoute,
             mode = mode,
             navData = navData,
             modifier = Modifier.fillMaxSize(),
@@ -102,37 +105,55 @@ fun AppMap(
         }
 
         Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
-            val feature = selectedFeature
-            if (mode.isEditMode && feature is SelectedNode) {
-                val node = navData.getNode(feature.id)!!
-                SelectedNodePanel(
-                    node = node,
-                    isEditing = isEditing,
-                    setIsEditing = setIsEditing,
-                    selectedNodeNewPosition = selectedNodeNewPosition,
-                    setSelectedNodeNewPosition = { selectedNodeNewPosition = it},
-                    onModifyNode = onModifyNode,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .align(Alignment.BottomCenter)
-                )
-                if (isEditing) {
-                    Text("拖动标志修改节点位置",
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 110.dp)
-                    )
+            when (mode) {
+                MapMode.Edit -> {
+                    val feature = selectedFeature
+                    when (feature) {
+                        is SelectedNode -> {
+                            val node = navData.getNode(feature.id)!!
+                            SelectedNodePanel(
+                                node = node,
+                                isEditing = isEditing,
+                                setIsEditing = setIsEditing,
+                                selectedNodeNewPosition = selectedNodeNewPosition,
+                                setSelectedNodeNewPosition = { selectedNodeNewPosition = it },
+                                onModifyNode = onModifyNode,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp)
+                                    .align(Alignment.BottomCenter)
+                            )
+                            if (isEditing) {
+                                Text(
+                                    "拖动标志修改节点位置",
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 110.dp)
+                                )
 
-                    CancelEditingButton(
-                        modifier = Modifier.align(Alignment.TopEnd),
-                        onClick = {
-                            if (node.position == selectedNodeNewPosition) {
-                                setIsEditing(false)
-                            } else {
-                                onDiscardEditing()
+                                CancelEditingButton(
+                                    modifier = Modifier.align(Alignment.TopEnd),
+                                    onClick = {
+                                        if (node.position == selectedNodeNewPosition) {
+                                            setIsEditing(false)
+                                        } else {
+                                            onDiscardEditing()
+                                        }
+                                    }
+                                )
                             }
                         }
+                        else -> {}
+                    }
+                }
+                MapMode.Map -> {
+                    RouteDestinationPanel(
+                        navData = navData,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                        ,
+                        onCreateRoute = { currentRoute = it }
                     )
                 }
             }

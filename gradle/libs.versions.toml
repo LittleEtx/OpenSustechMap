@@ -12,13 +12,14 @@ androidx-lifecycle = "2.8.4"
 androidx-material = "1.12.0"
 androidx-test-junit = "1.2.1"
 compose-multiplatform = "1.7.3"
+navigation-compose = "2.8.0-alpha10"
 junit = "4.13.2"
 kotlin = "2.1.20"
 maplibre = "0.6.0"
-maplibreAndroidVulkan = "11.8.5"
-serializationJson = "1.8.0"
+maplibre-android-vulkan = "11.8.5"
+serialization-json = "1.8.0"
 kermit = "2.0.5"
-sergeychTools = "1.5.2"
+sergeych-tools = "1.5.2"
 ktor = "3.1.2"
 coroutines = "1.10.1"
 logback = "1.5.18"
@@ -29,7 +30,7 @@ reflections = "0.10.2"
 sqlite = "3.49.1.0"
 geojson = "0.3.0"
 slf4j = "2.0.17"
-slf4jAndriod = "2.0.17-0"
+slf4j-andriod = "2.0.17-0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -44,19 +45,20 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+compose-navigation = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigation-compose" }
 
 maplibre-compose = { module = "dev.sargunv.maplibre-compose:maplibre-compose", version.ref = "maplibre" }
 maplibre-compose-material3 = { module = "dev.sargunv.maplibre-compose:maplibre-compose-material3", version.ref = "maplibre" }
-maplibre-android-vulkan = { module = "org.maplibre.gl:android-sdk-vulkan", version.ref = "maplibreAndroidVulkan" }
+maplibre-android-vulkan = { module = "org.maplibre.gl:android-sdk-vulkan", version.ref = "maplibre-android-vulkan" }
 spatialk-geojson = { module = "io.github.dellisd.spatialk:geojson", version.ref = "geojson" }
 
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization-json" }
 touchlab-kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
-sergeych-tools = { module = "net.sergeych:mp_stools", version.ref = "sergeychTools" }
+sergeych-tools = { module = "net.sergeych:mp_stools", version.ref = "sergeych-tools" }
 
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version.ref = "slf4jAndriod" }
+slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version.ref = "slf4j-andriod" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }

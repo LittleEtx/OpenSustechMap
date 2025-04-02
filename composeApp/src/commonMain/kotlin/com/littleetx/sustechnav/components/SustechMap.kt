@@ -106,11 +106,27 @@ fun getMapEditGeoJson(navData: NavigationData): State<GeoJson> {
     }
 }
 
+@Composable
+fun getRouteGeoJson(navData: NavigationData, route: SearchRouteResult): State<GeoJson> {
+    return produceState<GeoJson>(initialValue = FeatureCollection(), navData, route) {
+        value = FeatureCollection()
+        if (!route.isValid) {
+            return@produceState
+        }
+        val nodes = route.routes.map { navData.getNode(it) ?: return@produceState }
+        value = Feature(
+            id = "route",
+            geometry = LineString(coordinates = nodes.map{ it.position })
+        )
+    }
+}
+
 enum class MapMode {
     Map, Edit
 }
 
 val MapMode.isEditMode get() = this == MapMode.Edit
+val MapMode.isMapMode get() = this == MapMode.Map
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
@@ -123,6 +139,7 @@ fun SustechMap(
     selectedFeature: SelectedFeature?,
     setSelectedFeature: (SelectedFeature?) -> Unit,
     selectedNodeNewPosition: Position,
+    route: SearchRouteResult,
 ) {
     val styleState = rememberStyleState()
 
@@ -210,7 +227,21 @@ fun SustechMap(
             } else FeatureCollection(),
         )
 
+        val routeLine = rememberGeoJsonSource(
+            id = "route",
+            data = getRouteGeoJson(navData, route).value,
+        )
+
         Anchor.Below("building-3d") {
+            LineLayer(
+                id = "route",
+                visible = mode.isMapMode,
+                source = routeLine,
+                width = const(5.dp),
+                color = const(Color.Blue),
+            )
+
+
             CircleLayer(
                 id = "node-points",
                 visible = mode.isEditMode,
