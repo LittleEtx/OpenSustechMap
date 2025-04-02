@@ -42,8 +42,8 @@ import com.littleetx.sustechnav.api.Failure
 import com.littleetx.sustechnav.api.Success
 import com.littleetx.sustechnav.api.getMapData
 import com.littleetx.sustechnav.api.updateNode
+import com.littleetx.sustechnav.components.AppMap
 import com.littleetx.sustechnav.components.MapMode
-import com.littleetx.sustechnav.components.SustechMap
 import com.littleetx.sustechnav.components.WarningDialog
 import com.littleetx.sustechnav.data.NavigationData
 import com.littleetx.sustechnav.data.toNavigationData
@@ -115,16 +115,16 @@ fun App() {
     val apiPayload = remember { ApiPayload() }
 
     var updateNavDataHandle by remember { mutableStateOf(0) }
-    val (appMode, setAppMode) = remember { mutableStateOf(AppMode.Map) }
-    val (isProcessingRequest, setIsProcessing) = remember { mutableStateOf(false) }
-    val (isEditingNode, setIsEditingNode) = remember { mutableStateOf(false) }
+    var appMode by remember { mutableStateOf(AppMode.Map) }
+    var isProcessingRequest by  remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
     var nextAppMode by remember { mutableStateOf<AppMode?>(null) }
 
 
     val navData by fetchNavData(
         apiPayload = apiPayload,
         updateHandle = updateNavDataHandle,
-        setProcessing = setIsProcessing,
+        setProcessing = { isProcessingRequest = it },
         onFailure = {
             scope.launch {
                 snackbarHostState.showSnackbar(message = it.message)
@@ -137,11 +137,11 @@ fun App() {
         if (mode == appMode) {
             return
         }
-        if (isEditingNode) {
+        if (isEditing) {
             nextAppMode = mode
             showConfirmDiscardEditingDialog = true
         } else {
-            setAppMode(mode)
+            appMode = mode
         }
     }
 
@@ -154,10 +154,10 @@ fun App() {
                },
                 onConfirmation = {
                     showConfirmDiscardEditingDialog = false
-                    setIsEditingNode(false)
+                    isEditing = false
                     val nextMode = nextAppMode
                     if (nextMode != null) {
-                        setAppMode(nextMode)
+                        appMode = nextMode
                         nextAppMode = null
                     }
                 },
@@ -201,13 +201,13 @@ fun App() {
                     AppMode.Map -> MapMode.Map
                     AppMode.EditMap -> MapMode.Edit
                 }
-                SustechMap(
+                AppMap(
                     modifier = Modifier.fillMaxSize(),
                     mode = mapMode,
                     navData = navData,
                     onModifyNode = { node ->
                         scope.launch {
-                            setIsProcessing(true)
+                            isProcessingRequest = true
                             val result = apiPayload.updateNode(MapNode(
                                 id = node.id,
                                 lon = node.position.longitude,
@@ -217,14 +217,14 @@ fun App() {
                                 is Success<*> -> ++updateNavDataHandle
                                 is Failure<*> -> snackbarHostState.showSnackbar(result.message)
                             }
-                            setIsProcessing(false)
+                            isProcessingRequest = false
                         }
                     },
                     onModifyConn = {
 
                     },
-                    isEditingNode = isEditingNode,
-                    setIsEditingNode = setIsEditingNode,
+                    isEditing = isEditing,
+                    setIsEditing = { isEditing = it },
                     onDiscardEditing = { showConfirmDiscardEditingDialog = true }
                 )
 
