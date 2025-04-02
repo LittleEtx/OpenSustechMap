@@ -6,7 +6,7 @@ import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object MapNodeTable : IntIdTable("t_mapnode") {
-    val longitude = double("longtitude")
+    val longitude = double("longitude")
     val latitude = double("latitude")
 }
 

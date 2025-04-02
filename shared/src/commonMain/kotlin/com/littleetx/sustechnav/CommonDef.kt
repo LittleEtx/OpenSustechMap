@@ -36,10 +36,29 @@ class Connection(
     val type: ConnectionType,
 )
 
+
+typealias PoiId = String
+
+/**
+ * 表示图上的一个兴趣点
+ * @property id 兴趣点id
+ * @property node 节点id
+ * @property name 兴趣点名称
+ * @property tags 兴趣点标签
+ */
+@Serializable
+class Poi(
+    val id: PoiId,
+    val node: NodeId,
+    val name: String,
+    val tags: Map<String, String>,
+)
+
 @Serializable
 class MapData(
     val nodes: List<MapNode>,
     val connections: List<Connection>,
+    val pois: List<Poi>,
 )
 
 /**
