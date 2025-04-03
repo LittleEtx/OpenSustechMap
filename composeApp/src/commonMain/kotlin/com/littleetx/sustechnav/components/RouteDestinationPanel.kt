@@ -172,11 +172,11 @@ fun RouteDestinationPanel(
                     "路线长度：%.2f m".sprintf(currentDistance),
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .padding(10.dp)
                         .background(
                             color = MaterialTheme.colorScheme.surfaceBright,
                             shape = MaterialTheme.shapes.extraLarge
                         )
+                        .padding(5.dp)
                 )
             }
             Button(
